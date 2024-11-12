@@ -1,0 +1,87 @@
+(ql:quickload :alexandria)
+
+(defparameter *input-file* #P"input.txt")
+(defvar *input*)
+
+(defvar *program*)
+(defvar *input-fn*)
+(defvar *output-fn*)
+
+(defun opcode (pc)
+  (mod (aref *program* pc) 100))
+
+(defun parameter-mode (pc index)
+  (mod (truncate (aref *program* pc) (expt 10 (+ 1 index))) 10))
+
+(defun parameter (pc index)
+  (ecase (parameter-mode pc index)
+    (1 (aref *program* (+ index pc)))
+    (0 (aref *program* (aref *program* (+ pc index))))))
+
+(defun (setf parameter) (new-value pc index)
+  (ecase (parameter-mode pc index)
+    (0 (setf (aref *program* (aref *program* (+ pc index))) new-value))
+    (1 (error "Cannot write with a parameter in immediate mode"))))
+
+(defun execute-instruction (pc)
+  (ecase (opcode pc)
+    (99 (return-from execute-instruction))
+    (1 (setf (parameter pc 3) (+ (parameter pc 1) (parameter pc 2)))
+       (execute-instruction (+ pc 4)))
+    (2 (setf (parameter pc 3) (* (parameter pc 1) (parameter pc 2)))
+       (execute-instruction (+ pc 4)))
+    (3 (setf (parameter pc 1) (funcall *input-fn*))
+       (execute-instruction (+ pc 2)))
+    (4  (funcall *output-fn* (parameter pc 1))
+	(execute-instruction (+ pc 2)))
+    (5 (if (/= 0 (parameter pc 1))
+	   (execute-instruction (parameter pc 2))
+	   (execute-instruction (+ pc 3))))
+    (6 (if (= 0 (parameter pc 1))
+	   (execute-instruction (parameter pc 2))
+	   (execute-instruction (+ pc 3))))
+    (7 (if (< (parameter pc 1) (parameter pc 2))
+	   (setf (parameter pc 3) 1)
+	   (setf (parameter pc 3) 0))
+       (execute-instruction (+ pc 4)))
+    (8 (if (= (parameter pc 1) (parameter pc 2))
+	   (setf (parameter pc 3) 1)
+	   (setf (parameter pc 3) 0))
+       (execute-instruction (+ pc 4)))))
+
+(defun execute (program &key (input 'input) (output 'output))
+  (let ((*program* program)
+	(*input-fn* input)
+	(*output-fn* output))
+    (execute-instruction 0)))
+
+(defun parse-program (program-string)
+  (map 'vector #'parse-integer (uiop:split-string program-string :separator ",")))
+
+(defun amplify (phases)
+  (let ((amp-input 0))
+    (loop for phase in phases
+       do (let ((program (alexandria:copy-array *program*))
+		(inputs (list phase amp-input))
+		(output nil))
+	    (execute program :input (lambda () (pop inputs)) :output (lambda (x) (setf output x)))
+	    (setf amp-input output)))
+    amp-input))
+
+(defun max-thrust ()
+  (let ((res nil))
+    (alexandria:map-permutations (lambda (x) (push (amplify x) res)) '(0 1 2 3 4))
+    (apply #'max res)))
+
+(assert (= 43210 (let ((*program* (parse-program "3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0")))
+		   (max-thrust))))
+
+(assert (= 54321 (let ((*program* (parse-program "3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0")))
+		   (max-thrust))))
+
+(assert (= 65210 (let ((*program* (parse-program "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0")))
+		   (max-thrust))))
+
+(defun part1 ()
+  (let ((*program* (parse-program (uiop:read-file-string *input-file*))))
+    (max-thrust)))

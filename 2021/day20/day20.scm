@@ -1,0 +1,87 @@
+(import (chicken io)
+	(chicken format)
+	srfi-1
+	srfi-42
+	srfi-69
+	srfi-152
+	matchable)
+
+(define (parse-line s)
+  (map (lambda (c) (eq? c #\#)) (string->list s)))
+
+(define (read-input #!optional (port (current-input-port)))
+  (let* ((lines (read-lines port))
+	 (algo (list->vector (parse-line (car lines))))
+	 (img (map parse-line (cddr lines)))
+	 (h (make-hash-table)))
+    (do-ec (: line (index i) img)
+	   (: x (index j) line)
+	   (if x)
+	   (hash-table-set! h (list i j) #t))
+    (values algo h #f)))
+
+(define (kernel img bg i j)
+  (fold-ec 0 (: k (- i 1) (+ i 2)) (: l (- j 1) (+ j 2))
+	   (hash-table-ref/default img (list k l) bg)
+	   (lambda (n acc) (+ (* 2 acc) (if n 1 0)))))
+
+(define (enhance algo img bg)
+  (let* ((indices (hash-table-keys img))
+	 (min-i (hash-table-fold img (lambda (k v acc) (min (car k) acc)) 0))
+	 (max-i (hash-table-fold img (lambda (k v acc) (max (car k) acc)) 0))
+	 (min-j (hash-table-fold img (lambda (k v acc) (min (cadr k) acc)) 0))
+	 (max-j (hash-table-fold img (lambda (k v acc) (max (cadr k) acc)) 0))
+	 (new-img (make-hash-table))
+	 (new-bg (vector-ref algo (if bg 511 0))))
+    (do-ec (:range i (- min-i 1) (+ max-i 2))
+	   (:range j (- min-j 1) (+ max-j 2))
+	   (:let pixel (vector-ref algo (kernel img bg i j)))
+	   (hash-table-set! new-img (list i j) pixel))
+    (values new-img new-bg)))
+
+(define (count-pixels img)
+  (hash-table-fold img (lambda (k v acc) (if v (+ 1 acc) acc)) 0))
+
+(define (part12 algo img bg times)
+  (if (zero? times)
+      (count-pixels img)
+      (let-values (((img bg) (enhance algo img bg)))
+	;; (with-output-to-file (sprintf "imgs/img~a.pbm" times)
+	;;   (lambda () (img->pbm img bg)))
+	(part12 algo img bg (sub1 times)))))
+
+(let-values (((algo img bg) (read-input)))
+  (print (part12 algo img bg 2))
+  (print (part12 algo img bg 50)))
+
+(define (visualize img bg)
+  (let* ((indices (hash-table-keys img))
+	 (min-i (hash-table-fold img (lambda (k v acc) (min (car k) acc)) 0))
+	 (max-i (hash-table-fold img (lambda (k v acc) (max (car k) acc)) 0))
+	 (min-j (hash-table-fold img (lambda (k v acc) (min (cadr k) acc)) 0))
+	 (max-j (hash-table-fold img (lambda (k v acc) (max (cadr k) acc)) 0)))
+    (do-ec (:range i (index k) (- min-i 1) (+ max-i 2))
+	   (:range j (index l) (- min-j 1) (+ max-j 2))
+	   (begin
+	     (when (and (not (= k 0)) (= l 0)) (display "\n"))
+	     (if (hash-table-ref/default img (list i j) bg)
+		 (display "#")
+		 (display "."))))
+    (display "\n")))
+
+(define (img->pbm img bg)
+  (let* ((indices (hash-table-keys img))
+	 (min-i (hash-table-fold img (lambda (k v acc) (min (car k) acc)) 0))
+	 (max-i (hash-table-fold img (lambda (k v acc) (max (car k) acc)) 0))
+	 (min-j (hash-table-fold img (lambda (k v acc) (min (cadr k) acc)) 0))
+	 (max-j (hash-table-fold img (lambda (k v acc) (max (cadr k) acc)) 0)))
+    (printf "P1 ~a ~a~n" (+ 2 (- max-i min-i)) (+ 2 (- max-j min-j)))
+    (do-ec (:range i (index k) (- min-i 1) (+ max-i 2))
+	   (:range j (index l) (- min-j 1) (+ max-j 2))
+	   (begin
+	     (when (and (not (= k 0)) (= l 0)) (display "\n"))
+	     (if (hash-table-ref/default img (list i j) bg)
+		 (display "1")
+		 (display "0"))))
+    (display "\n")))
+
