@@ -6,3 +6,7 @@ d←∾1⊸↓¨∾¨⌽⍟0‿1¨¨UpperDiags¨a
 na←+´+´∘⥊¨"XMAS"⊸⍷¨a
 nd←+´+´¨"XMAS"⊸⍷¨d
 •Show na+nd
+
+idxs←(⥊↕¯2+≢in)+⌜↕3‿3
+Diags←0‿0⊸⍉¨ ⌽∘⍉⍟0‿1
+•Show +´{∧´(Diags𝕩⊑in)∊"MAS"‿"SAM"}˘idxs
