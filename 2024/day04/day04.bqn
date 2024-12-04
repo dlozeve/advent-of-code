@@ -7,6 +7,6 @@ na←+´+´∘⥊¨"XMAS"⊸⍷¨a
 nd←+´+´¨"XMAS"⊸⍷¨d
 •Show na+nd
 
-idxs←(⥊↕¯2+≢in)+⌜↕3‿3
-Diags←0‿0⊸⍉¨ ⌽∘⍉⍟0‿1
-•Show +´{∧´(Diags𝕩⊑in)∊"MAS"‿"SAM"}˘idxs
+d1←2⊸⥊¨3⥊↕3
+d2←⌽⊸(∾¨)↕3
+•Show +´⥊∧˝∊⟜"MAS"‿"SAM"˘⊑⟜in¨d1‿d2+⟜<⌜↕¯2+≢in
